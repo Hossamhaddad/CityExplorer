@@ -15,21 +15,50 @@ server.listen(PORT,()=>{
 })
 
 
+server.get('/',(req,res)=>{
+  res.send('this is home route ');
+})
+
 server.get('/test',(request,response)=>{
     response.send('my server is working!!');
   })
 
 server.get('/location',(req,res)=>{
   const locData = require('./data/location.json');
-  console.log(locData);
-  console.log(locData[0]);
   const locationObj = new Location(locData);
-    console.log(locData);
-    console.log(locData[0]);
-  console.log(locationObj)
   res.send(locationObj);
-  
 })
+
+
+
+
+server.get('/weather',(req,res)=>{
+  const wethData = require('./data/weather.json');
+  //  const weatherObj= new Weather(wethData);
+
+
+   let foreCast=[];
+   for (var i=0;i<5;i++){
+   let newforecast= new Weather(wethData,i);
+   foreCast.push(newforecast);
+    //  console.log(foreCast);
+   }
+
+  // console.log(wethData.data[0].weather.description);
+  // console.log(wethData.data[0].valid_date);
+  // const locationObj = new Location(wethData);
+  // res.send(locationObj);
+  res.send(foreCast);
+})
+
+
+
+
+function Weather(weatherData,index){
+  this.forecast=weatherData.data[index].weather.description;
+  this.time=weatherData.data[index].valid_date;
+}
+
 
 
 function Location(locationData){
@@ -37,4 +66,14 @@ function Location(locationData){
   this.formatted_query= locationData[0].display_name;
   this.latitude = locationData[0].lat;
   this.longitude = locationData[0].lon;
+}
+
+server.use('*',(req,res)=>{
+  const error= new Error()
+  res.status(500).send(error)
+})
+
+function Error(){
+  this.status=500;
+  this.responseText='Sorry, something went wrong'
 }
