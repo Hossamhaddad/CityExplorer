@@ -8,72 +8,135 @@ const cors = require('cors');
 
 const server = express();
 
-const PORT = process.env.PORT || 4000; 
+server.use(cors());
 
-server.listen(PORT,()=>{
+const PORT = process.env.PORT || 4000;
+
+const superagent = require('superagent');
+
+server.listen(PORT, () => {
   console.log(`listening on port ${PORT}`)
 })
 
 
-server.get('/',(req,res)=>{
+server.get('/', handleHome)
+
+
+function handleHome(req, res) {
   res.send('this is home route ');
-})
+}
 
-server.get('/test',(request,response)=>{
-    response.send('my server is working!!');
+
+server.get('/test', handleTest)
+
+function handleTest(request, response) {
+  response.send('my server is working!!');
+}
+
+
+
+
+server.get('/location', handleLocation)
+
+
+//https://us1.locationiq.com/v1/search.php?key=YOUR_ACCESS_TOKEN&q=SEARCH_STRING&format=json
+function handleLocation(req, res) {
+  const city = req.query.city;
+  let key = process.env.LOCATION_KEY;
+  let url = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${city}&format=json`;
+  superagent.get(url)
+    .then(locaDat => {
+      const locationData = new Location(city, locaDat.body[0]);
+      // console.log(locationData)
+      res.send(locationData);
+    })
+}
+
+
+
+
+server.get('/weather', handleWeather)
+
+//https://api.weatherbit.io/v2.0/forecast/daily?city=Raleigh,NC&key=API_KEY
+function handleWeather(req, res) {
+  const city = req.query.search_query;
+  let key = process.env.WEATHER_KEY;
+  let url = `https://api.weatherbit.io/v2.0/forecast/daily?city=${city}&key=${key}`;
+
+  // console.log(url)
+
+  superagent.get(url)
+    .then(weatherDat => {
+
+      let weatherArr = weatherDat.body.data.map(function (n, i) {
+        return new Weather(weatherDat, i);
+      })
+      res.send(weatherArr)
+
+    })
+
+}
+
+
+server.get('/parks', handlePark)
+
+function handlePark(req, res) {
+  const city = req.query.search_query;
+  let key = process.env.PARK_KEY;
+  let url = `https://developer.nps.gov/api/v1/parks?q=${city}&api_key=${key}`;
+  superagent.get(url)
+  .then(parksDat =>{
+
+    let parksArr = parksDat.body.data.map(function (n, i) {
+      return new Parks(parksDat, i);
+      
   })
-
-server.get('/location',(req,res)=>{
-  const locData = require('./data/location.json');
-  const locationObj = new Location(locData);
-  res.send(locationObj);
+  console.log(parksArr)
+  res.send(parksArr)
 })
+}
 
+function Parks(parksData,i){
+ this.name=parksData.body.data[i].fullName
+ this.address=parksData.body.data[i].map
+ this.fee=parksData.body.data[i].entranceFees[0].cost
+ this.description=parksData.body.data[i].description
+//  this.address=parksData.body.data[i].addresses[0]
+ this.address=parksData.body.data[i].addresses[0].line1+parksData.body.data[i].addresses[0].stateCode+parksData.body.data[i].addresses[0].city+parksData.body.data[i].addresses[0].postalCode
 
-
-
-server.get('/weather',(req,res)=>{
-  const wethData = require('./data/weather.json');
-  //  const weatherObj= new Weather(wethData);
-
-
-   let foreCast=[];
-   for (var i=0;i<5;i++){
-   let newforecast= new Weather(wethData,i);
-   foreCast.push(newforecast);
-    //  console.log(foreCast);
-   }
-
-  // console.log(wethData.data[0].weather.description);
-  // console.log(wethData.data[0].valid_date);
-  // const locationObj = new Location(wethData);
-  // res.send(locationObj);
-  res.send(foreCast);
-})
-
-
-
-
-function Weather(weatherData,index){
-  this.forecast=weatherData.data[index].weather.description;
-  this.time=weatherData.data[index].valid_date;
+ // "name": "Mount Rainier National Park",
+  //    "address": ""55210 238th Avenue East" "Ashford" "WA" "98304",
+  //    "fee": "0.00"
+  //    "description": "Ascending to 14,410 feet above sea level, Mount Rainier stands as an icon in the Washington landscape. An active volcano, Mount Rainier is the most glaciated peak in the contiguous U.S.A., spawning five major rivers. Subalpine wildflower meadows ring the icy volcano while ancient forest cloaks Mount Rainier’s lower slopes. Wildlife abounds in the park’s ecosystems. A lifetime of discovery awaits.",
+  //    "url"
 }
 
 
 
-function Location(locationData){
-  this.search_query = 'Lynnwood';
-  this.formatted_query= locationData[0].display_name;
-  this.latitude = locationData[0].lat;
-  this.longitude = locationData[0].lon;
+
+
+
+function Weather(weatherData, i) {
+  this.forecast = weatherData.body.data[i].weather.description;
+  this.time = weatherData.body.data[i].valid_date;
 }
 
-server.use('*',(req,res)=>{
-  const error= new Error()
+
+
+function Location(city, locationData) {
+  this.search_query = city;
+  this.formatted_query = locationData.display_name;
+  this.latitude = locationData.lat;
+  this.longitude = locationData.lon;
+}
+
+server.use('*', handleError)
+function handleError(req, res) {
+  const error = new Error()
   res.status(500).send(error)
-})
+}
 
-function Error(){
-  this.status=500;
-  this.responseText='Sorry, something went wrong'
+function Error() {
+  this.status = 500;
+  this.responseText = 'Sorry, something went wrong'
 }
