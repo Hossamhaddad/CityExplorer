@@ -12,11 +12,17 @@ server.use(cors());
 
 const PORT = process.env.PORT || 4000;
 
+const pg=require('pg');
+
 const superagent = require('superagent');
 
-server.listen(PORT, () => {
-  console.log(`listening on port ${PORT}`)
-})
+const client = new pg.Client(process.env.DATABASE_URL);
+
+// const client = new pg.Client({ connectionString: process.env.DATABASE_URL,   ssl: { rejectUnauthorized: false } });
+
+// server.listen(PORT, () => {
+//   console.log(`listening on port ${PORT}`)
+// })
 
 
 server.get('/', handleHome)
@@ -41,6 +47,7 @@ server.get('/location', handleLocation)
 
 //https://us1.locationiq.com/v1/search.php?key=YOUR_ACCESS_TOKEN&q=SEARCH_STRING&format=json
 function handleLocation(req, res) {
+  
   const city = req.query.city;
   let key = process.env.LOCATION_KEY;
   let url = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${city}&format=json`;
@@ -140,3 +147,11 @@ function Error() {
   this.status = 500;
   this.responseText = 'Sorry, something went wrong'
 }
+
+client.connect()
+.then(()=>{
+  server.listen(PORT, () => {
+    console.log(`listening on port ${PORT}`)
+  })
+
+});
