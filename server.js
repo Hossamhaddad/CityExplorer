@@ -12,11 +12,17 @@ server.use(cors());
 
 const PORT = process.env.PORT || 4000;
 
+const pg=require('pg');
+
 const superagent = require('superagent');
 
-server.listen(PORT, () => {
-  console.log(`listening on port ${PORT}`)
-})
+const client = new pg.Client(process.env.DATABASE_URL);
+
+// const client = new pg.Client({ connectionString: process.env.DATABASE_URL,ssl: { rejectUnauthorized: false } });
+
+// server.listen(PORT, () => {
+//   console.log(`listening on port ${PORT}`)
+// })
 
 
 server.get('/', handleHome)
@@ -42,16 +48,35 @@ server.get('/location', handleLocation)
 //https://us1.locationiq.com/v1/search.php?key=YOUR_ACCESS_TOKEN&q=SEARCH_STRING&format=json
 function handleLocation(req, res) {
   const city = req.query.city;
-  let key = process.env.LOCATION_KEY;
-  let url = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${city}&format=json`;
-  superagent.get(url)
-    .then(locaDat => {
-      const locationData = new Location(city, locaDat.body[0]);
-      // console.log(locationData)
-      res.send(locationData);
-    })
+  let SQL = `SELECT * FROM locations WHERE search_query='${city}';`;
+  client.query(SQL)
+  .then(results=>{
+    if(results.rowCount!==0){
+    console.log('fromDataBase')
+    console.log(results.rows)
+    res.send(results.rows)
+    }
+    else {
+  
+      const city = req.query.city;
+        let key = process.env.LOCATION_KEY;
+        let url = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${city}&format=json`;
+        superagent.get(url)
+          .then(locaDat => {
+            const locationData = new Location(city, locaDat.body[0]);
+            let SQL = `INSERT INTO locations VALUES ($1,$2,$3,$4) RETURNING *;`;
+            let safeValues = [locationData.search_query,locationData.formatted_query,locationData.latitude,locationData.longitude];
+            client.query(SQL,safeValues)
+            .then(results=>{
+              res.send(locationData);
+              console.log(' from api ');
+              console.log(results.rows);
+            })
+            
+          })
 }
-
+})
+}
 
 
 
@@ -91,7 +116,7 @@ function handlePark(req, res) {
       return new Parks(parksDat, i);
       
   })
-  console.log(parksArr)
+  // console.log(parksArr)
   res.send(parksArr)
 })
 }
@@ -131,6 +156,7 @@ function Location(city, locationData) {
 }
 
 server.use('*', handleError)
+
 function handleError(req, res) {
   const error = new Error()
   res.status(500).send(error)
@@ -140,3 +166,11 @@ function Error() {
   this.status = 500;
   this.responseText = 'Sorry, something went wrong'
 }
+
+client.connect()
+.then(()=>{
+  server.listen(PORT, () => {
+    console.log(`listening on port ${PORT}`)
+  })
+
+});
