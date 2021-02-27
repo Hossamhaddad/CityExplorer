@@ -16,16 +16,61 @@ const pg=require('pg');
 
 const superagent = require('superagent');
 
-// const client = new pg.Client(process.env.DATABASE_URL);
+const client = new pg.Client(process.env.DATABASE_URL);
 
-const client = new pg.Client({ connectionString: process.env.DATABASE_URL,ssl: { rejectUnauthorized: false } });
+// const client = new pg.Client({ connectionString: process.env.DATABASE_URL,ssl: { rejectUnauthorized: false } });
 
 // server.listen(PORT, () => {
 //   console.log(`listening on port ${PORT}`)
 // })
 
-
+server.get('/yelp',handleYelp)
 server.get('/', handleHome)
+
+function handleYelp(req,res){
+let city=req.query.location
+let key=process.env.YELP_KEY;
+let page=req.query.page
+let offset=((page -1) * 5 + 1)
+let header=`{Authorization':'${key}'}`
+let url=`https://api.yelp.com/v3/businesses/search?location=${city}&limit=5&offset=${offset}`
+console.log(url);
+superagent.get(url)
+ .set(`Authorization`,`Bearer ${key}`)
+.then(yelpData=>{
+  let yelpinfo=yelpData.body.businesses.map(item=> new Yelp(item))
+  console.log(yelpinfo);
+ res.send(yelpinfo)
+})
+
+.catch(error=>{
+  console.log(error);
+})
+}
+
+
+
+
+
+function Yelp(data){
+this.name=data.name
+this.image=data.image_url
+this.price=data.price
+this.rating=data.rating
+this.url=data.url
+  // "name": "Pike Place Chowder",
+  // "image_url": "https://s3-media3.fl.yelpcdn.com/bphoto/ijju-wYoRAxWjHPTCxyQGQ/o.jpg",
+  // "price": "$$   ",
+  // "rating": "4.5",
+  // "url": "https://www.yelp.com/biz/pike-place-chowder-seattle?adjust_creative=uK0rfzqjBmWNj6-d3ujNVA&utm_campaign=yelp_api_v3&utm_medium=api_v3_business_search&utm_source=uK0rfzqjBmWNj6-d3ujNVA"
+}
+
+
+
+
+
+
+
 
 
 function handleHome(req, res) {
@@ -87,21 +132,20 @@ function handleWeather(req, res) {
   const city = req.query.search_query;
   let key = process.env.WEATHER_KEY;
   let url = `https://api.weatherbit.io/v2.0/forecast/daily?city=${city}&key=${key}`;
-
+  
   // console.log(url)
-
+  
   superagent.get(url)
-    .then(weatherDat => {
-
-      let weatherArr = weatherDat.body.data.map(function (n, i) {
-        return new Weather(weatherDat, i);
-      })
-      res.send(weatherArr)
-
+  .then(weatherDat => {
+    
+    let weatherArr = weatherDat.body.data.map(function (n, i) {
+      return new Weather(weatherDat, i);
     })
-
+    res.send(weatherArr)
+    
+  })
+  
 }
-
 
 server.get('/parks', handlePark)
 
@@ -111,29 +155,22 @@ function handlePark(req, res) {
   let url = `https://developer.nps.gov/api/v1/parks?q=${city}&api_key=${key}`;
   superagent.get(url)
   .then(parksDat =>{
-
+    
     let parksArr = parksDat.body.data.map(function (n, i) {
       return new Parks(parksDat, i);
       
+    })
+    res.send(parksArr)
   })
-  // console.log(parksArr)
-  res.send(parksArr)
-})
 }
 
 function Parks(parksData,i){
- this.name=parksData.body.data[i].fullName
- this.address=parksData.body.data[i].map
- this.fee=parksData.body.data[i].entranceFees[0].cost
- this.description=parksData.body.data[i].description
-//  this.address=parksData.body.data[i].addresses[0]
- this.address=parksData.body.data[i].addresses[0].line1+parksData.body.data[i].addresses[0].stateCode+parksData.body.data[i].addresses[0].city+parksData.body.data[i].addresses[0].postalCode
+  this.name=parksData.body.data[i].fullName
+  this.address=parksData.body.data[i].map
+  this.fee=parksData.body.data[i].entranceFees[0].cost
+  this.description=parksData.body.data[i].description
+  this.address=parksData.body.data[i].addresses[0].line1+parksData.body.data[i].addresses[0].stateCode+parksData.body.data[i].addresses[0].city+parksData.body.data[i].addresses[0].postalCode
 
- // "name": "Mount Rainier National Park",
-  //    "address": ""55210 238th Avenue East" "Ashford" "WA" "98304",
-  //    "fee": "0.00"
-  //    "description": "Ascending to 14,410 feet above sea level, Mount Rainier stands as an icon in the Washington landscape. An active volcano, Mount Rainier is the most glaciated peak in the contiguous U.S.A., spawning five major rivers. Subalpine wildflower meadows ring the icy volcano while ancient forest cloaks Mount Rainier’s lower slopes. Wildlife abounds in the park’s ecosystems. A lifetime of discovery awaits.",
-  //    "url"
 }
 
 
@@ -154,6 +191,41 @@ function Location(city, locationData) {
   this.latitude = locationData.lat;
   this.longitude = locationData.lon;
 }
+
+server.get('/movies',hanldeMovie)
+function hanldeMovie(req,res){
+  const city=req.query.search_query;
+  let key=process.env.MOVIES_KEY;
+  let url=`https://api.themoviedb.org/3/search/movie?api_key=${key}&language=en-US&query=${city}&page=1`
+  console.log(url);
+  superagent.get(url)
+  .then(movieDat=>{
+    let newArr=[];
+    const moviesData=movieDat.body.results.forEach(item=>{
+     newArr.push(new Movies(item))
+     
+    })
+    res.json(newArr)
+    })
+}
+
+function Movies(data){
+this.title=data.title
+this.overview=data.overview
+this.average_votes=data.vote_average
+this.total_votes=data.vote_count
+this.img=`https://image.tmdb.org/t/p${data.poster_path}`
+this.popularity=data.popularity
+this.released_on=data.release_date
+}
+
+
+
+
+
+
+
+
 
 server.use('*', handleError)
 
