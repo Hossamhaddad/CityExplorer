@@ -16,9 +16,9 @@ const pg=require('pg');
 
 const superagent = require('superagent');
 
-      // const client = new pg.Client(process.env.DATABASE_URL);
+      const client = new pg.Client(process.env.DATA_BASE_URL);
 
-const client = new pg.Client({ connectionString: process.env.DATABASE_URL,ssl: { rejectUnauthorized: false } });
+// const client = new pg.Client({ connectionString: process.env.DATA_BASE_URL, ssl: { rejectUnauthorized: false } });
 
 // server.listen(PORT, () => {
 //   console.log(`listening on port ${PORT}`)
@@ -54,7 +54,7 @@ superagent.get(url)
 
 function Yelp(data){
 this.name=data.name
-this.image=data.image_url
+this.image_url=data.image_url
 this.price=data.price
 this.rating=data.rating
 this.url=data.url
