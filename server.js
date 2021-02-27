@@ -214,7 +214,7 @@ this.title=data.title
 this.overview=data.overview
 this.average_votes=data.vote_average
 this.total_votes=data.vote_count
-this.img=`https://image.tmdb.org/t/p${data.poster_path}`
+this.image_url=`https://image.tmdb.org/t/p${data.poster_path}`
 this.popularity=data.popularity
 this.released_on=data.release_date
 }
